@@ -3,8 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!url || !anonKey) {
-  console.warn('Missing Supabase env vars. Copy .env.example to .env.local and fill it in.');
-}
+export const isSupabaseConfigured = Boolean(url && anonKey);
 
-export const supabase = createClient(url ?? '', anonKey ?? '');
+// createClient throws on an empty URL, so use a harmless placeholder when the
+// env vars are missing. The app shows a setup screen instead of crashing.
+export const supabase = createClient(url || 'http://localhost:54321', anonKey || 'missing-anon-key', {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+});

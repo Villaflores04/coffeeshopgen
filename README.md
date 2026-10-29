@@ -1,74 +1,89 @@
-# CoffeeShop Gen
+# CoffeeShopGen
 
-A multi-shop coffee marketplace: shop owners apply and get approved, customers browse shops, order for delivery, track their order, and earn reward points.
+A multi-shop coffee marketplace. Shop owners apply and get approved, customers order for delivery and follow the order live, and everyone earns points that take money off the next cup.
 
-**Stack:** React (Vite) · Tailwind CSS v4 · Supabase (Postgres, Auth, Row Level Security) · React Router
+**Stack:** React 18 (Vite) · Tailwind CSS v4 · Supabase (Postgres, Auth, Storage, Realtime) · deployed on Vercel
 
-## Features
+## What it does
 
-- **Shop owners:** apply with shop details → admin approves → dashboard to manage products, stock, and incoming orders
-- **Admin:** review pending shop applications (approve or reject with a reason)
-- **Customers:** browse approved shops, add items (with sizes) to a cart, checkout, track order status, and earn points (1 per ₱100)
+| Who | What they can do |
+| --- | --- |
+| Customers | Browse shops, order with sizes, pay on delivery, follow the order through 7 live steps, cancel while it's still "placed", rate delivered orders, earn and spend points, invite friends |
+| Shop owners | Apply with shop details and photos, get reviewed, then manage the menu and stock, move orders along, pause orders, see sales and earnings |
+| Admins | Review applications (approve, reject with a reason, suspend), see marketplace totals |
 
-## Setup
+## Set it up
 
-### 1. Install
+### 1. Supabase
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor → New query**, paste [`supabase/migrations/20261028000000_init.sql`](supabase/migrations/20261028000000_init.sql), and run it. This creates the tables, the order and reward functions, row level security, the image bucket and realtime.
+   - If you ran the earlier v1 schema, run [`supabase/reset.sql`](supabase/reset.sql) first. It deletes the old tables.
+3. Under **Project Settings → API**, copy the **Project URL** and the **anon public** key.
+4. Under **Authentication → URL Configuration**, set **Site URL** to your Vercel URL (or `http://localhost:5173` while developing) and add the same address under **Redirect URLs**. Without this, email confirmation links point to the wrong place.
+5. Optional: under **Authentication → Providers → Email**, turn off "Confirm email" while testing so sign-up logs in immediately.
+
+### 2. Run it locally
 
 ```bash
 npm install
-```
-
-### 2. Create a Supabase project
-
-1. Go to [supabase.com](https://supabase.com) and create a project.
-2. Open **SQL Editor → New query**, paste the full contents of [`supabase/schema.sql`](supabase/schema.sql), and run it.
-3. Under **Project Settings → API**, copy the Project URL and the `anon` public key.
-
-### 3. Configure environment
-
-```bash
-cp .env.example .env.local
-```
-
-Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-
-### 4. Run
-
-```bash
+cp .env.example .env.local     # then fill in the two values
 npm run dev
 ```
 
-### 5. Create an admin
+### 3. Make yourself an admin
 
-1. Sign up through the app once.
-2. In the Supabase SQL Editor, run:
+Sign up in the app, then run this in the Supabase SQL Editor with your email:
 
-   ```sql
-   update profiles set role = 'admin'
-   where id = (select id from auth.users where email = 'you@example.com');
-   ```
+```sql
+update public.profiles set role = 'admin'
+where id = (select id from auth.users where email = 'you@example.com');
+```
 
-Admins can then open **Admin** and approve shops.
+Open **Admin** from the account menu to approve shops. Optional: run [`supabase/seed.sql`](supabase/seed.sql) to turn your first account into the owner of a demo shop with a small menu.
+
+### 4. Deploy to Vercel
+
+1. Push this repo to GitHub and import it at [vercel.com/new](https://vercel.com/new). Vercel detects Vite on its own.
+2. Add two **Environment Variables** (Production and Preview):
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+3. Deploy. [`vercel.json`](vercel.json) rewrites every path to `index.html`, so refreshing `/orders` or opening a shared shop link works instead of returning a 404.
+4. Put your Vercel URL into Supabase's Site URL and Redirect URLs (step 1.4).
+
+Vite bakes `VITE_*` variables in at build time, so redeploy after changing them. The anon key is safe in the browser: the database is protected by row level security, not by hiding the key. Never put the `service_role` key in this project.
+
+## How the rules are enforced
+
+The browser never writes orders, order items, rewards or shop status directly. It calls database functions that check everything on the server:
+
+- `place_order` reads prices, sizes, stock, delivery fee and the customer's points from the database, never from the browser. It locks the rows, so two people can't buy the last croissant. All steps happen in one transaction.
+- `set_order_status` only lets a shop move an order one step forward, and lets a customer cancel while it is still "placed". Cancelling puts stock back, voids pending points and returns spent points.
+- `review_shop`, `resubmit_shop` and `submit_review` guard approvals and reviews.
+- Column-level grants stop users from editing their own role or a shop's status.
+
+**Points:** 1 point per ₱20 paid, pending until the order is delivered. 1 point is worth ₱1 and can cover up to half the subtotal. **Referrals:** both people get 50 points after the invited friend's first delivered order of ₱200 or more, once per friend, with a cap of 10 bonuses a month per referrer. **Platform fee:** 5% of the subtotal, stored on every order.
 
 ## Project structure
 
 ```
-supabase/schema.sql      Tables, triggers, RPC, and RLS policies
+supabase/
+  migrations/…init.sql   Tables, functions, RLS, storage, realtime
+  seed.sql               Optional demo shop
+  reset.sql              Destructive clean-up for the old v1 schema
 src/
-  lib/                   Supabase client, auth & cart contexts, shared UI tokens
-  components/            Navbar, ProtectedRoute
-  pages/                 Shops, ShopPage, Cart, Orders, OwnerDashboard, AdminPanel, Login
+  lib/                   Supabase client, auth, cart, toasts, confirm dialogs, formatting, rules
+  components/            UI kit, ticket, order tracker, navbar, image upload
+  pages/                 Home, ShopPage, Cart, Orders, Rewards, Login
+  pages/owner/           Dashboard, orders, menu, shop form
+  pages/admin/           Admin panel
+vercel.json              SPA rewrite, cache and security headers
 ```
 
-## Known limitations (MVP)
+## Known limits
 
-- Stock is not decremented when an order is placed. The owner adjusts it manually.
-- Order creation runs as several client-side inserts. A Postgres function would make it atomic.
-- No payment gateway. GCash and card are recorded as payment methods only.
-- Image fields take URLs. There is no file upload yet (Supabase Storage can be added).
-- Points are recorded but cannot be redeemed yet.
-- Real-time order updates are not wired up. Refresh to see changes.
-
-## Deploying
-
-Build with `npm run build`, then deploy the `dist/` folder to Vercel, Netlify, or Cloudflare Pages. Set the two `VITE_SUPABASE_*` variables in the host's environment settings.
+- **No online payments.** Orders are paid on delivery (cash or GCash to the rider). Adding a gateway such as PayMongo or Xendit means a server function plus a webhook.
+- **Settlement is not automated.** Orders store the 5% fee and owners see their net earnings, but paying shops out is a separate process.
+- **Delivery is handled by the shop.** There is no courier app, so the shop moves the order through the steps.
+- **Points can be discounted by hand-made accounts.** The referral cap and the qualifying-order rule limit abuse, but they can't tell two accounts owned by one person apart.
+- Reviews can't be edited or deleted yet, and there is no password reset page.

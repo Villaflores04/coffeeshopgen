@@ -1,71 +1,97 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useConfirm } from './ConfirmContext.jsx';
+import { useToast } from './ToastContext.jsx';
 
 const CartContext = createContext(null);
-const STORAGE_KEY = 'coffeeshopgen-cart';
+const KEY = 'coffeeshopgen.cart.v2';
 const EMPTY = { shop: null, items: [] };
 
-// The cart holds items from one shop at a time.
+function load() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY));
+    return raw?.items ? raw : EMPTY;
+  } catch {
+    return EMPTY;
+  }
+}
+
+/** The cart holds items from one shop at a time. Prices here are for display;
+ *  the database recomputes everything when the order is placed. */
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? EMPTY;
-    } catch {
-      return EMPTY;
-    }
-  });
+  const confirm = useConfirm();
+  const toast = useToast();
+  const [cart, setCart] = useState(load);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+    try {
+      localStorage.setItem(KEY, JSON.stringify(cart));
+    } catch {
+      /* storage can be unavailable (private mode); the cart still works in memory */
+    }
   }, [cart]);
 
-  function addItem(shop, product, size = null) {
-    let base = cart;
-    if (cart.shop && cart.shop.id !== shop.id) {
-      const ok = window.confirm(
-        `Your cart has items from ${cart.shop.name}. Clear it and add from ${shop.name} instead?`
-      );
-      if (!ok) return;
-      base = EMPTY;
-    }
+  const addItem = useCallback(
+    async (shop, product, sizeName) => {
+      let base = cart;
+      if (cart.shop && cart.shop.id !== shop.id) {
+        const ok = await confirm({
+          title: 'Start a new cart?',
+          message: `Your cart has items from ${cart.shop.name}. Adding this will clear it.`,
+          confirmText: 'Start new cart',
+        });
+        if (!ok) return;
+        base = EMPTY;
+      }
 
-    const key = `${product.id}-${size ?? ''}`;
-    const existing = base.items.find((i) => i.key === key);
-    const items = existing
-      ? base.items.map((i) => (i.key === key ? { ...i, qty: i.qty + 1 } : i))
-      : [
-          ...base.items,
-          {
-            key,
-            productId: product.id,
-            name: product.name,
-            price: Number(product.price),
-            size,
-            qty: 1,
-          },
-        ];
+      const extra = (product.sizes ?? []).find((s) => s.name === sizeName)?.extra ?? 0;
+      const key = `${product.id}|${sizeName ?? ''}`;
+      const existing = base.items.find((i) => i.key === key);
 
-    setCart({ shop: { id: shop.id, name: shop.name }, items });
-  }
+      if (existing && existing.qty >= product.stock) {
+        toast.error(`That’s all we have of ${product.name}.`);
+        return;
+      }
 
-  function updateQty(key, delta) {
-    const items = cart.items
-      .map((i) => (i.key === key ? { ...i, qty: i.qty + delta } : i))
-      .filter((i) => i.qty > 0);
-    setCart({ shop: items.length ? cart.shop : null, items });
-  }
+      const items = existing
+        ? base.items.map((i) => (i.key === key ? { ...i, qty: i.qty + 1, max: product.stock } : i))
+        : [
+            ...base.items,
+            {
+              key,
+              productId: product.id,
+              name: product.name,
+              size: sizeName ?? null,
+              unitPrice: Number(product.price) + Number(extra),
+              qty: 1,
+              max: product.stock,
+            },
+          ];
 
-  function clearCart() {
-    setCart(EMPTY);
-  }
-
-  const total = cart.items.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const count = cart.items.reduce((sum, i) => sum + i.qty, 0);
-
-  const value = useMemo(
-    () => ({ ...cart, total, count, addItem, updateQty, clearCart }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cart]
+      setCart({
+        shop: { id: shop.id, name: shop.name, delivery_fee: shop.delivery_fee, min_order: shop.min_order },
+        items,
+      });
+      toast.success(`Added ${product.name}`);
+    },
+    [cart, confirm, toast]
   );
+
+  const setQty = useCallback((key, qty) => {
+    setCart((c) => {
+      const items = c.items
+        .map((i) => (i.key === key ? { ...i, qty: Math.min(qty, i.max || qty) } : i))
+        .filter((i) => i.qty > 0);
+      return { shop: items.length ? c.shop : null, items };
+    });
+  }, []);
+
+  const clear = useCallback(() => setCart(EMPTY), []);
+
+  const value = useMemo(() => {
+    const subtotal = cart.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+    const count = cart.items.reduce((s, i) => s + i.qty, 0);
+    return { shop: cart.shop, items: cart.items, subtotal, count, addItem, setQty, clear };
+  }, [cart, addItem, setQty, clear]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
