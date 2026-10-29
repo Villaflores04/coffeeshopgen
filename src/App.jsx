@@ -20,11 +20,14 @@ const AdminPanel = lazy(() => import('./pages/admin/AdminPanel.jsx'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
   return null;
 }
 
 export default function App() {
+  const { pathname } = useLocation();
   if (!isSupabaseConfigured) return <SetupNotice />;
 
   return (
@@ -32,7 +35,7 @@ export default function App() {
       <ScrollToTop />
       <Navbar />
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
-        <ErrorBoundary>
+        <ErrorBoundary key={pathname}>
           <Suspense fallback={<Skeleton className="mt-10 h-72 w-full" />}>
             <Routes>
               <Route path="/" element={<Home />} />
