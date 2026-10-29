@@ -31,7 +31,16 @@ cp .env.example .env.local     # then fill in the two values
 npm run dev
 ```
 
-### 3. Make yourself an admin
+### 3. Create the test admin (quickest)
+
+Run [`supabase/seed_admin.sql`](supabase/seed_admin.sql) in the SQL Editor. It creates an admin you can log in with right away:
+
+- Email: `admin@gmail.com`
+- Password: `#admin321`
+
+**This repo is public, so this login is public.** It is for test systems only. Before real customers arrive, delete it with `delete from auth.users where email = 'admin@gmail.com';` (also at the bottom of that file). If you'd rather use a private admin, skip this and follow the next section.
+
+### 3b. Or make your own account an admin
 
 Sign up in the app, then run this in the Supabase SQL Editor with your email:
 
