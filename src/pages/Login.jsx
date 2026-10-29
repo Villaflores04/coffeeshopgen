@@ -12,7 +12,7 @@ export default function Login() {
   const [mode, setMode] = useState(params.get('mode') === 'signup' || ref ? 'signup' : 'signin');
   const [form, setForm] = useState({ email: '', password: '', fullName: '' });
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [duplicate, setDuplicate] = useState(false);
   const [busy, setBusy] = useState(false);
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -26,24 +26,35 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     setError('');
-    setNotice('');
+    setDuplicate(false);
+
+    // Emails are not case-sensitive, so always send them trimmed and lowercase.
+    const email = form.email.trim().toLowerCase();
 
     const { data, error: err } =
       mode === 'signin'
-        ? await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
+        ? await supabase.auth.signInWithPassword({ email, password: form.password })
         : await supabase.auth.signUp({
-            email: form.email,
+            email,
             password: form.password,
-            options: {
-              data: { full_name: form.fullName.trim(), referral_code: ref || undefined },
-              emailRedirectTo: window.location.origin,
-            },
+            options: { data: { full_name: form.fullName.trim(), referral_code: ref || undefined } },
           });
 
     setBusy(false);
-    if (err) return setError(errMsg(err));
+
+    if (err) {
+      if (mode === 'signup' && /already (registered|exists)/i.test(err.message)) {
+        setDuplicate(true);
+        return setError('That email already has an account.');
+      }
+      return setError(errMsg(err));
+    }
+
+    // No session after sign-up means Supabase is still set to require email confirmation.
     if (mode === 'signup' && !data.session) {
-      return setNotice('We sent you a confirmation email. Open it, then come back and log in.');
+      return setError(
+        'Your account was created, but Supabase is still asking for email confirmation. Turn off "Confirm email" in Supabase under Authentication, Sign In / Providers, Email, then log in.'
+      );
     }
     navigate(from, { replace: true });
   }
@@ -81,7 +92,11 @@ export default function Login() {
         </Field>
 
         {error && <p role="alert" className="text-sm text-cherry-600">{error}</p>}
-        {notice && <p role="status" className="text-sm text-moss-600">{notice}</p>}
+        {duplicate && (
+          <button type="button" className="text-sm font-semibold underline underline-offset-2" onClick={() => { setMode('signin'); setError(''); setDuplicate(false); }}>
+            Log in with this email instead
+          </button>
+        )}
 
         <Button variant="primary" size="lg" className="w-full" loading={busy}>
           {mode === 'signin' ? 'Log in' : 'Create account'}
@@ -89,7 +104,7 @@ export default function Login() {
 
         <p className="text-center text-sm text-ink-700">
           {mode === 'signin' ? 'New here? ' : 'Already have an account? '}
-          <button type="button" className="font-semibold underline underline-offset-2" onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setNotice(''); }}>
+          <button type="button" className="font-semibold underline underline-offset-2" onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setDuplicate(false); }}>
             {mode === 'signin' ? 'Create an account' : 'Log in'}
           </button>
         </p>

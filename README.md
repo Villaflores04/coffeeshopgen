@@ -21,7 +21,7 @@ A multi-shop coffee marketplace. Shop owners apply and get approved, customers o
    - If you ran the earlier v1 schema, run [`supabase/reset.sql`](supabase/reset.sql) first. It deletes the old tables.
 3. Copy two values: the **Project URL** and the **publishable key** (`sb_publishable_…`). Find both by clicking **Connect** at the top of the project, or under **Settings → API Keys**. Older projects show a legacy `anon` key instead; it works the same way.
 4. Under **Authentication → URL Configuration**, set **Site URL** to your Vercel URL (or `http://localhost:5173` while developing) and add the same address under **Redirect URLs**. Without this, email confirmation links point to the wrong place.
-5. Optional: under **Authentication → Providers → Email**, turn off "Confirm email" while testing so sign-up logs in immediately.
+5. **Turn off email confirmation.** Under **Authentication → Sign In / Providers → Email**, switch off **Confirm email**. The app expects sign-up to log people in right away, with no link or code. With it off, any email address that isn't already registered works, and a duplicate gets a clear "already has an account" message.
 
 ### 2. Run it locally
 
