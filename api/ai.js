@@ -5,7 +5,9 @@
 // Callers must be signed in; products are read with the caller's own session, so
 // row-level security decides what they can see.
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+// Tried in order; the next one is used if a model isn't available for this API key.
+// GEMINI_MODEL (optional) is tried first.
+const MODELS = [...new Set([process.env.GEMINI_MODEL, 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'].filter(Boolean))];
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
@@ -41,24 +43,36 @@ async function rest(path, token) {
 }
 
 async function gemini({ system, contents, schema }) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents,
-      generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.5, maxOutputTokens: 700 },
-    }),
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents,
+    generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.5, maxOutputTokens: 2048 },
   });
-  if (r.status === 429) throw Object.assign(new Error('The AI is busy right now. Try again in a minute.'), { status: 429 });
-  if (!r.ok) throw Object.assign(new Error('The AI service had a problem. Please try again.'), { status: 502 });
-  const data = await r.json();
-  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw Object.assign(new Error('The AI gave an unreadable answer. Please try again.'), { status: 502 });
+  let last = 0;
+  for (const model of MODELS) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+      body,
+    });
+    if (!r.ok) {
+      last = r.status;
+      console.error(`Gemini ${model} -> ${r.status}`, (await r.text().catch(() => '')).slice(0, 300));
+      if ([400, 403, 404, 429, 503].includes(r.status)) continue; // try the next model
+      break;
+    }
+    const data = await r.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.error(`Gemini ${model} returned unreadable output`, text.slice(0, 200));
+      continue;
+    }
   }
+  if (last === 429) throw Object.assign(new Error('The AI is busy right now. Try again in a minute.'), { status: 429 });
+  if (last === 400 || last === 403) throw Object.assign(new Error(`The AI key was rejected (Gemini ${last}). Check GEMINI_API_KEY in Vercel.`), { status: 502 });
+  throw Object.assign(new Error(`The AI service had a problem${last ? ` (Gemini ${last})` : ''}. Please try again.`), { status: 502 });
 }
 
 const CHAT_SCHEMA = {

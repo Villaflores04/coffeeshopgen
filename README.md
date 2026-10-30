@@ -110,4 +110,4 @@ To turn it on:
 2. In Vercel, **Settings → Environment Variables**, add `GEMINI_API_KEY` (no `VITE_` prefix; the key must stay server-side) for Production, Preview and Development.
 3. Redeploy.
 
-Optional: `GEMINI_MODEL` (default `gemini-2.5-flash`). Without the key the rest of the app works normally and the assistant says it isn't set up yet. Only signed-in users can call it, limited to 30 requests per hour each. The functions don't run under plain `npm run dev`; use the deployed site or `vercel dev`.
+Optional: `GEMINI_MODEL` (tried first; otherwise it falls back through `gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`). Without the key the rest of the app works normally and the assistant says it isn't set up yet. Only signed-in users can call it, limited to 30 requests per hour each. The functions don't run under plain `npm run dev`; use the deployed site or `vercel dev`.
