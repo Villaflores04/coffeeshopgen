@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { supabase } from '../lib/supabase.js';
 import { useToast } from '../lib/ToastContext.jsx';
@@ -12,6 +12,12 @@ export default function Profile() {
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [address, setAddress] = useState(profile?.default_address ?? '');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setFullName(profile?.full_name ?? '');
+    setPhone(profile?.phone ?? '');
+    setAddress(profile?.default_address ?? '');
+  }, [profile]);
 
   async function save(e) {
     e.preventDefault();
