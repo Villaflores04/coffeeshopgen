@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react';
+import { callAi } from '../../lib/ai.js';
 import { supabase } from '../../lib/supabase.js';
 import { useConfirm } from '../../lib/ConfirmContext.jsx';
 import { useToast } from '../../lib/ToastContext.jsx';
@@ -19,8 +20,28 @@ function ProductForm({ shopId, product, categories, onSaved, onClose }) {
       : blank
   );
   const [busy, setBusy] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const setSize = (i, patch) => setF({ ...f, sizes: f.sizes.map((s, idx) => (idx === i ? { ...s, ...patch } : s)) });
+
+  // Fills only the fields the owner hasn't touched, so nothing they typed is overwritten.
+  async function suggest() {
+    setSuggesting(true);
+    try {
+      const out = await callAi({ mode: 'describe', name: f.name, categories });
+      setF((cur) => ({
+        ...cur,
+        description: cur.description.trim() ? cur.description : out.description,
+        category: cur.category.trim() ? cur.category : out.category,
+        sizes: cur.sizes.length ? cur.sizes : out.sizes,
+      }));
+      toast.success('Suggestions added. Check them before saving.');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   async function save(e) {
     e.preventDefault();
@@ -50,7 +71,14 @@ function ProductForm({ shopId, product, categories, onSaved, onClose }) {
     <Modal open onClose={onClose} title={product ? 'Edit product' : 'Add a product'} wide>
       <form onSubmit={save} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Name" className="sm:col-span-2"><Input value={f.name} onChange={set('name')} required autoFocus /></Field>
+          <Field label="Name" className="sm:col-span-2">
+            <div className="flex gap-2">
+              <Input value={f.name} onChange={set('name')} required autoFocus />
+              <Button type="button" variant="outline" loading={suggesting} disabled={f.name.trim().length < 2} onClick={suggest} title="Fills in the description, category and sizes for you">
+                <Sparkles className="size-4" aria-hidden /> AI fill
+              </Button>
+            </div>
+          </Field>
           <Field label="Category" hint="Groups your menu, like Espresso or Pastry.">
             <Input list="categories" value={f.category} onChange={set('category')} />
             <datalist id="categories">{[...new Set([...CATEGORY_PRESETS, ...categories])].map((c) => <option key={c} value={c} />)}</datalist>

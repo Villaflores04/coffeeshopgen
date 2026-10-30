@@ -96,3 +96,18 @@ vercel.json              SPA rewrite, cache and security headers
 - **Delivery is handled by the shop.** There is no courier app, so the shop moves the order through the steps.
 - **Points can be discounted by hand-made accounts.** The referral cap and the qualifying-order rule limit abuse, but they can't tell two accounts owned by one person apart.
 - Reviews can't be edited or deleted yet, and there is no password reset page.
+
+## AI features (optional)
+
+Two features use Google Gemini through a Vercel serverless function (`api/ai.js`):
+
+- **Coffee assistant** – a floating "Ask AI" button. Customers describe what they want and get real products from the live menu, each with an Add button.
+- **AI fill** – in the owner's product form, fills the description, category and sizes from the product name (never overwrites what the owner already typed).
+
+To turn it on:
+
+1. Create a free key at https://aistudio.google.com/apikey
+2. In Vercel, **Settings → Environment Variables**, add `GEMINI_API_KEY` (no `VITE_` prefix; the key must stay server-side) for Production, Preview and Development.
+3. Redeploy.
+
+Optional: `GEMINI_MODEL` (default `gemini-2.5-flash`). Without the key the rest of the app works normally and the assistant says it isn't set up yet. Only signed-in users can call it, limited to 30 requests per hour each. The functions don't run under plain `npm run dev`; use the deployed site or `vercel dev`.

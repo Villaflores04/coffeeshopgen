@@ -5,6 +5,7 @@ import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import CartBar from './components/CartBar.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import CoffeeAssistant from './components/CoffeeAssistant.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import SetupNotice from './components/SetupNotice.jsx';
 import { Skeleton } from './components/ui.jsx';
@@ -58,6 +59,7 @@ export default function App() {
       </main>
       {!isAdmin && <Footer />}
       {!isAdmin && <CartBar />}
+      {!isAdmin && <CoffeeAssistant />}
     </>
   );
 }
