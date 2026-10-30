@@ -15,6 +15,7 @@ const Cart = lazy(() => import('./pages/Cart.jsx'));
 const Orders = lazy(() => import('./pages/Orders.jsx'));
 const Rewards = lazy(() => import('./pages/Rewards.jsx'));
 const Login = lazy(() => import('./pages/Login.jsx'));
+const Profile = lazy(() => import('./pages/Profile.jsx'));
 const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard.jsx'));
 const AdminPanel = lazy(() => import('./pages/admin/AdminPanel.jsx'));
 
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
               <Route path="/owner" element={<ProtectedRoute><OwnerDashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute role="admin"><AdminPanel /></ProtectedRoute>} />
