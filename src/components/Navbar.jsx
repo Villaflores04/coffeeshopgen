@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, Menu, ShoppingBag, X } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { useCart } from '../lib/CartContext.jsx';
+import { initials } from '../lib/format.js';
 import { btn, cn } from './ui.jsx';
 
 export function Logo({ className }) {
@@ -23,7 +24,7 @@ const linkCls = ({ isActive }) =>
   cn('rounded-md px-3 py-2 text-sm font-semibold transition-colors', isActive ? 'bg-ink-900/8 text-ink-900' : 'text-ink-700 hover:text-ink-900');
 
 function AccountMenu() {
-  const { profile, role, signOut } = useAuth();
+  const { user, profile, role, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -38,9 +39,15 @@ function AccountMenu() {
   return <div className="relative" ref={ref}>
     <button onClick={() => setOpen(!open)} aria-expanded={open}
       className="flex h-10 items-center gap-1.5 rounded-lg border border-ink-900/18 bg-foam px-3 text-sm font-semibold hover:border-ink-900/40">
-      {first}<ChevronDown className="size-4" aria-hidden />
+      <span className="grid size-6 place-items-center rounded-full bg-ink-900 text-[10px] font-bold text-foam" aria-hidden>{initials(profile?.full_name || user?.email)}</span>
+      <span className="max-w-24 truncate">{first}</span><ChevronDown className="size-4" aria-hidden />
     </button>
-    {open && <div className="animate-rise absolute right-0 mt-2 w-52 rounded-xl border border-ink-900/12 bg-foam p-1.5 shadow-xl" onClick={() => setOpen(false)}>
+    {open && <div className="animate-rise absolute right-0 mt-2 w-64 rounded-xl border border-ink-900/12 bg-foam p-1.5 shadow-xl" onClick={() => setOpen(false)}>
+      <div className="mb-1.5 border-b border-ink-900/10 px-3 pt-2 pb-3">
+        <p className="truncate font-semibold">{profile?.full_name || 'Your account'}</p>
+        <p className="truncate text-[13px] text-ink-600">{user?.email}</p>
+        <p className="mt-1.5 inline-block rounded bg-kraft-200 px-1.5 py-0.5 text-[11px] font-semibold capitalize">{role}</p>
+      </div>
       {role === 'admin' ? <><Link to="/admin" className={item}>Admin control center</Link><Link to="/profile" className={item}>My profile</Link></> : <>
         <Link to="/profile" className={item}>My profile</Link>
         <Link to="/orders" className={item}>My orders</Link>
@@ -67,7 +74,8 @@ export default function Navbar() {
         <Logo />
         <div className="hidden items-center gap-1 md:flex">
           {isAdmin ? <NavLink to="/admin" className={linkCls}>Admin control center</NavLink> : <>
-            <NavLink to="/" end className={linkCls}>Browse shops</NavLink>
+            <NavLink to="/" end className={({ isActive }) => linkCls({ isActive: isActive && !window.location.search })}>Shops</NavLink>
+            <NavLink to="/?view=products" className={() => linkCls({ isActive: window.location.search.includes('products') })}>Products</NavLink>
             {session && <NavLink to="/orders" className={linkCls}>Orders</NavLink>}
             {session && <NavLink to="/rewards" className={linkCls}>Rewards</NavLink>}
           </>}
@@ -101,13 +109,15 @@ function MobileLinks() {
       <Link to="/admin" className={item}>Admin control center</Link>
       <Link to="/profile" className={item}>My profile</Link>
     </> : session ? <>
-      <Link to="/" className={item}>Browse shops</Link>
+      <Link to="/" className={item}>Shops</Link>
+      <Link to="/?view=products" className={item}>Products</Link>
       <Link to="/profile" className={item}>My profile</Link>
       <Link to="/orders" className={item}>My orders</Link>
       <Link to="/rewards" className={item}>Rewards</Link>
       <Link to="/owner" className={item}>{role === 'owner' ? 'My shop' : 'Open a shop'}</Link>
     </> : <>
-      <Link to="/" className={item}>Browse shops</Link>
+      <Link to="/" className={item}>Shops</Link>
+      <Link to="/?view=products" className={item}>Products</Link>
       <Link to="/login" className={item}>Log in or sign up</Link>
     </>}
     {session && <button className={cn(item, 'w-full text-left text-cherry-600')} onClick={async () => { await signOut(); navigate('/'); }}>Log out</button>}

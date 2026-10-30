@@ -1,69 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Clock, ExternalLink, MapPin, Phone, Plus, Truck } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, MapPin, Phone, Search, Truck } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
-import { useCart } from '../lib/CartContext.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { pesoShort, timeAgo } from '../lib/format.js';
 import CartTicket from '../components/CartTicket.jsx';
-import { Badge, EmptyState, Leader, LinkButton, Skeleton, Stars, Thumb, cn } from '../components/ui.jsx';
-
-function MenuItem({ shop, product, isOwnShop }) {
-  const { addItem } = useCart();
-  const sizes = product.sizes ?? [];
-  const [size, setSize] = useState(sizes[0]?.name ?? null);
-  const extra = Number(sizes.find((s) => s.name === size)?.extra ?? 0);
-  const out = product.stock <= 0;
-  const closed = !shop.is_open;
-
-  return (
-    <li className="flex gap-4 py-5">
-      {product.image_url && <Thumb src={product.image_url} alt={product.name} className="size-20 rounded-lg sm:size-24" />}
-      <div className="min-w-0 flex-1">
-        <Leader
-          left={<h3 className="font-display text-xl font-bold tracking-tight">{product.name}</h3>}
-          right={<span className="font-semibold tabular-nums">{pesoShort(Number(product.price) + extra)}</span>}
-        />
-        {product.description && <p className="mt-0.5 text-[15px] text-ink-600">{product.description}</p>}
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          {sizes.length > 0 ? (
-            <div className="inline-flex rounded-lg border border-ink-900/18 p-0.5" role="radiogroup" aria-label={`Size for ${product.name}`}>
-              {sizes.map((s) => (
-                <button
-                  key={s.name}
-                  role="radio"
-                  aria-checked={size === s.name}
-                  onClick={() => setSize(s.name)}
-                  className={cn(
-                    'rounded-md px-3 py-1 text-sm font-medium transition-colors',
-                    size === s.name ? 'bg-ink-900 text-foam' : 'text-ink-700 hover:bg-ink-900/6'
-                  )}
-                >
-                  {s.name}
-                  {Number(s.extra) > 0 && <span className="ml-1 opacity-70">+{pesoShort(s.extra)}</span>}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <span />
-          )}
-
-          <div className="flex items-center gap-3">
-            {!out && product.stock <= 5 && <Badge tone="warn">{product.stock} left</Badge>}
-            <button
-              onClick={() => addItem(shop, product, size)}
-              disabled={out || closed || isOwnShop}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-ink-900/25 bg-foam px-3.5 text-sm font-semibold transition-colors hover:border-ink-900 hover:bg-ink-900 hover:text-foam disabled:pointer-events-none disabled:opacity-45"
-            >
-              {isOwnShop ? 'Your shop' : out ? 'Sold out' : <><Plus className="size-4" aria-hidden /> Add</>}
-            </button>
-          </div>
-        </div>
-      </div>
-    </li>
-  );
-}
+import ProductCard, { ProductGrid } from '../components/ProductCard.jsx';
+import { Badge, EmptyState, LinkButton, Skeleton, Stars, Thumb, inputCls, cn } from '../components/ui.jsx';
 
 export default function ShopPage() {
   const { id } = useParams();
@@ -73,6 +16,8 @@ export default function ShopPage() {
   const [rating, setRating] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [state, setState] = useState('loading');
+  const [query, setQuery] = useState('');
+  const [cat, setCat] = useState('All');
 
   useEffect(() => {
     let alive = true;
@@ -95,14 +40,16 @@ export default function ShopPage() {
     };
   }, [id]);
 
+  const categories = useMemo(() => ['All', ...new Set(products.map((p) => p.category || 'Menu'))], [products]);
   const groups = useMemo(() => {
+    const q = query.trim().toLowerCase();
     const map = new Map();
-    products.forEach((p) => {
+    products.filter((p) => (cat === 'All' || (p.category || 'Menu') === cat) && (!q || `${p.name} ${p.description ?? ''}`.toLowerCase().includes(q))).forEach((p) => {
       const k = p.category || 'Menu';
       map.set(k, [...(map.get(k) ?? []), p]);
     });
     return [...map.entries()];
-  }, [products]);
+  }, [products, query, cat]);
 
   if (state === 'loading') return <Skeleton className="mt-8 h-96 w-full" />;
   if (state === 'missing') {
@@ -118,6 +65,9 @@ export default function ShopPage() {
 
   return (
     <div className="pt-6 sm:pt-8">
+      <Link to="/" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-700 hover:text-ink-900">
+        <ArrowLeft className="size-4" aria-hidden /> All shops
+      </Link>
       <div className="h-40 overflow-hidden rounded-2xl bg-kraft-200 sm:h-60">
         {shop.cover_url && <img src={shop.cover_url} alt="" className="size-full object-cover" />}
       </div>
@@ -171,28 +121,37 @@ export default function ShopPage() {
         </p>
       )}
 
-      <div className="mt-12 grid gap-12 lg:grid-cols-[1fr_21rem]">
+      <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_21rem]">
         <div>
-          {groups.length === 0 && <EmptyState title="The menu is empty">This shop hasn’t added products yet.</EmptyState>}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-0 flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-600" aria-hidden />
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${shop.name}`} aria-label="Search this shop's products" className={cn(inputCls, 'pl-9')} />
+            </div>
+            <span className="text-sm text-ink-600">{products.length} product{products.length === 1 ? '' : 's'}</span>
+          </div>
 
-          {groups.length > 1 && (
-            <nav className="sticky top-16 z-20 -mx-4 mb-2 flex gap-2 overflow-x-auto bg-steam-100/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0" aria-label="Menu sections">
-              {groups.map(([name]) => (
-                <a key={name} href={`#cat-${encodeURIComponent(name)}`} className="rounded-lg border border-ink-900/18 bg-foam px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap hover:border-ink-900">
-                  {name}
-                </a>
+          {categories.length > 2 && (
+            <div className="sticky top-16 z-20 -mx-4 mt-3 flex gap-2 overflow-x-auto bg-steam-100/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0" role="tablist" aria-label="Menu sections">
+              {categories.map((c) => (
+                <button key={c} role="tab" aria-selected={cat === c} onClick={() => setCat(c)}
+                  className={cn('rounded-full border px-4 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors',
+                    cat === c ? 'border-ink-900 bg-ink-900 text-foam' : 'border-ink-900/18 bg-foam text-ink-700 hover:border-ink-900/50')}>
+                  {c}
+                </button>
               ))}
-            </nav>
+            </div>
           )}
 
+          {products.length === 0 && <EmptyState title="The menu is empty">This shop hasn’t added products yet.</EmptyState>}
+          {products.length > 0 && groups.length === 0 && <EmptyState title="Nothing matches that">Try another search or category.</EmptyState>}
+
           {groups.map(([name, items]) => (
-            <section key={name} id={`cat-${encodeURIComponent(name)}`} className="scroll-mt-32">
-              <h2 className="mt-8 mb-1 font-display text-2xl font-extrabold tracking-tight">{name}</h2>
-              <ul className="divide-y divide-ink-900/10 border-y border-ink-900/10">
-                {items.map((p) => (
-                  <MenuItem key={p.id} shop={shop} product={p} isOwnShop={isOwnShop} />
-                ))}
-              </ul>
+            <section key={name} className="mt-6">
+              <h2 className="mb-3 font-display text-2xl font-extrabold tracking-tight">{name}</h2>
+              <ProductGrid narrow>
+                {items.map((p) => <ProductCard key={p.id} shop={shop} product={p} isOwnShop={isOwnShop} />)}
+              </ProductGrid>
             </section>
           ))}
 
