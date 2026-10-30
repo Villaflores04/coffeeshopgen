@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Star } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
+import { useAuth } from '../lib/AuthContext.jsx';
 import { pesoShort } from '../lib/format.js';
 import { Ticket, TicketLine, TicketRule } from '../components/Ticket.jsx';
 import { Badge, EmptyState, Leader, LinkButton, Skeleton, Thumb, Select, inputCls, cn } from '../components/ui.jsx';
 
-function Hero() {
+function Hero({ role }) {
   return (
     <section className="grid items-center gap-12 pt-12 pb-16 lg:grid-cols-[1.15fr_0.85fr] lg:pt-20 lg:pb-24">
       <div>
@@ -21,7 +22,7 @@ function Hero() {
             Browse shops
           </a>
           <LinkButton to="/owner" variant="outline" size="lg">
-            Open your shop
+            {role === 'owner' || role === 'admin' ? 'Manage my shop' : 'Open your shop'}
           </LinkButton>
         </div>
       </div>
@@ -95,6 +96,7 @@ function ShopRow({ shop }) {
 }
 
 export default function Home() {
+  const { user, profile, role } = useAuth();
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -137,7 +139,16 @@ export default function Home() {
 
   return (
     <>
-      <Hero />
+      {user && (
+        <div className="mt-6 flex flex-col gap-2 rounded-xl border border-ink-900/10 bg-foam px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">Welcome back, {(profile?.full_name || user.email || 'there').split(' ')[0]}.</p>
+            <p className="text-sm text-ink-600">{role === 'owner' || role === 'admin' ? 'Browse other coffee shops or manage your own shop.' : 'Find a shop, place an order, and track it from your account.'}</p>
+          </div>
+          <Link to={role === 'owner' || role === 'admin' ? '/owner' : '/orders'} className="text-sm font-semibold underline underline-offset-4">{role === 'owner' || role === 'admin' ? 'Open my dashboard' : 'View my orders'}</Link>
+        </div>
+      )}
+      <Hero role={role} />
 
       <section id="shops" className="scroll-mt-24">
         <div className="flex flex-wrap items-end justify-between gap-4">
