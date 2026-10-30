@@ -49,6 +49,8 @@ function AccountMenu() {
       </button>
       {open && (
         <div className="animate-rise absolute right-0 mt-2 w-52 rounded-xl border border-ink-900/12 bg-foam p-1.5 shadow-xl" onClick={() => setOpen(false)}>
+          <Link to="/profile" className={item}>My profile</Link>
+          <Link to="/profile" className={item}>My profile</Link>
           <Link to="/orders" className={item}>My orders</Link>
           <Link to="/rewards" className={item}>Rewards</Link>
           <Link to="/owner" className={item}>{role === 'owner' || role === 'admin' ? 'My shop' : 'Open a shop'}</Link>
@@ -80,7 +82,7 @@ export default function Navbar() {
         <div className="flex items-center gap-8">
           <Logo />
           <div className="hidden items-center gap-1 md:flex">
-            <NavLink to="/" end className={linkCls}>Shops</NavLink>
+            <NavLink to="/" end className={linkCls}>Browse shops</NavLink>
             {session && <NavLink to="/orders" className={linkCls}>Orders</NavLink>}
             {session && <NavLink to="/rewards" className={linkCls}>Rewards</NavLink>}
           </div>
@@ -125,9 +127,10 @@ function MobileLinks() {
   const item = 'block rounded-md px-3 py-3 text-base font-semibold hover:bg-ink-900/6';
   return (
     <div className="pt-2">
-      <Link to="/" className={item}>Shops</Link>
+      <Link to="/" className={item}>Browse shops</Link>
       {session ? (
         <>
+          <Link to="/profile" className={item}>My profile</Link>
           <Link to="/orders" className={item}>My orders</Link>
           <Link to="/rewards" className={item}>Rewards</Link>
           <Link to="/owner" className={item}>{role === 'owner' || role === 'admin' ? 'My shop' : 'Open a shop'}</Link>
