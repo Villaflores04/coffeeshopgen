@@ -7,7 +7,12 @@ export default function OrderTracker({ status }) {
   const current = ORDER_STEPS.indexOf(status);
 
   return (
-    <div className="-mx-1 overflow-x-auto px-1 pb-1">
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-steam-100 px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-600">Current status</span>
+        <span className="text-sm font-bold text-ink-900">{ORDER_LABEL[status] ?? 'Status unavailable'}</span>
+      </div>
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
       <ol className="flex min-w-[32rem]" aria-label="Order progress">
         {ORDER_STEPS.map((step, i) => {
           const done = i < current || status === 'delivered';
@@ -37,6 +42,7 @@ export default function OrderTracker({ status }) {
           );
         })}
       </ol>
+      </div>
     </div>
   );
 }
