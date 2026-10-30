@@ -42,7 +42,6 @@ export default function AdminPanel() {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState('');
-  const [editingShop, setEditingShop] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
 
   const load = useCallback(async () => {
@@ -88,19 +87,6 @@ export default function AdminPanel() {
     if (err) return toast.error(errMsg(err));
     toast.success(action === 'approve' ? 'Shop approved and activated.' : action === 'reject' ? 'Application rejected.' : action === 'suspend' ? 'Shop suspended.' : 'Shop restored.');
     await load();
-  }
-
-  async function saveShop(event) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const changes = Object.fromEntries(['name','tagline','description','address','contact_phone','contact_email','business_hours','delivery_info','delivery_fee','min_order'].map((k) => [k, form.get(k) ?? '']));
-    setBusy(editingShop.id);
-    const { error: err } = await supabase.rpc('admin_manage_shop', {
-      p_shop: editingShop.id, p_action: 'update', p_reason: null, p_changes: changes,
-    });
-    setBusy('');
-    if (err) return toast.error(errMsg(err));
-    setEditingShop(null); toast.success('Shop details updated.'); load();
   }
 
   async function accountAction(profile, suspend) {
@@ -153,7 +139,6 @@ export default function AdminPanel() {
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={() => setEditingShop(s)}><Pencil className="size-3.5" /> Edit</Button>
         {approval && <Button size="sm" variant="primary" loading={busy === s.id} onClick={() => shopAction(s, 'approve')}><Check className="size-4" /> Approve</Button>}
         {s.status === 'pending' && <Button size="sm" variant="danger" loading={busy === s.id} onClick={() => shopAction(s, 'reject')}>Reject</Button>}
         {s.status === 'rejected' && <Button size="sm" variant="primary" loading={busy === s.id} onClick={() => shopAction(s, 'approve')}>Re-approve</Button>}
@@ -212,14 +197,6 @@ export default function AdminPanel() {
       </Panel>)}</div>
       {!visibleProfiles.length && <EmptyState title="No accounts found">Try another search term.</EmptyState>}
     </>}
-
-    {editingShop && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-5" onMouseDown={() => setEditingShop(null)}>
-      <form onSubmit={saveShop} onMouseDown={(e)=>e.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl space-y-3 overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl sm:p-6">
-        <div className="flex items-center justify-between"><h2 className="font-display text-2xl font-bold">Edit shop details</h2><button type="button" onClick={()=>setEditingShop(null)} aria-label="Close"><X /></button></div>
-        {['name','tagline','description','address','contact_phone','contact_email','business_hours','delivery_info','delivery_fee','min_order'].map((key)=> <label key={key} className="block text-sm font-medium capitalize text-ink-700">{key.replaceAll('_',' ')}<Input name={key} defaultValue={editingShop[key] ?? ''} required={key==='name'} /></label>)}
-        <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={()=>setEditingShop(null)}>Cancel</Button><Button type="submit" loading={busy===editingShop.id}>Save changes</Button></div>
-      </form>
-    </div>}
 
     {editingProfile && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-5" onMouseDown={()=>setEditingProfile(null)}>
       <form onSubmit={saveProfile} onMouseDown={(e)=>e.stopPropagation()} className="w-full max-w-md space-y-4 rounded-t-2xl bg-white p-5 sm:rounded-2xl sm:p-6">
