@@ -1,42 +1,47 @@
 -- Ensure a suspended owner cannot keep selling through a still-approved shop.
--- Hide the shop and its catalog from public browsing until the owner is restored.
+-- This SECURITY DEFINER helper lets public catalog policies check owner status
+-- without granting anon direct access to private profile rows.
+create or replace function public.shop_owner_is_active(p_shop uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.shops s
+    join public.profiles p on p.id = s.owner_id
+    where s.id = p_shop and p.is_suspended = false
+  );
+$$;
+revoke all on function public.shop_owner_is_active(uuid) from public;
+grant execute on function public.shop_owner_is_active(uuid) to anon, authenticated;
+
 drop policy if exists shops_public_read on public.shops;
 create policy shops_public_read on public.shops
   for select to anon, authenticated
-  using (
-    status = 'approved'
-    and exists (
-      select 1 from public.profiles p
-      where p.id = shops.owner_id and p.is_suspended = false
-    )
-  );
+  using (status = 'approved' and public.shop_owner_is_active(id));
 
 drop policy if exists products_public_read on public.products;
 create policy products_public_read on public.products
   for select to anon, authenticated
-  using (
-    is_active
-    and exists (
-      select 1 from public.shops s
-      join public.profiles p on p.id = s.owner_id
-      where s.id = products.shop_id
-        and s.status = 'approved'
-        and p.is_suspended = false
-    )
-  );
+  using (is_active and exists (
+    select 1 from public.shops s
+    where s.id = products.shop_id
+      and s.status = 'approved'
+      and public.shop_owner_is_active(s.id)
+  ));
 
 drop policy if exists reviews_public_read on public.reviews;
 create policy reviews_public_read on public.reviews
   for select to anon, authenticated
-  using (
-    exists (
-      select 1 from public.shops s
-      join public.profiles p on p.id = s.owner_id
-      where s.id = reviews.shop_id
-        and s.status = 'approved'
-        and p.is_suspended = false
-    )
-  );
+  using (exists (
+    select 1 from public.shops s
+    where s.id = reviews.shop_id
+      and s.status = 'approved'
+      and public.shop_owner_is_active(s.id)
+  ));
 
 -- Suspended users may still read their own profile to see the reason,
 -- but cannot keep editing profile details while suspended.
