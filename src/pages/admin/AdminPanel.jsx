@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Search, Store, Users, ClipboardList, Activity, ShieldAlert, RefreshCw, Pencil, Check, X, Clock3, PackageCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase.js';
 import { useToast } from '../../lib/ToastContext.jsx';
@@ -170,6 +170,7 @@ export default function AdminPanel() {
         <Button size="sm" variant="outline" onClick={() => setEditingShop(s)}><Pencil className="size-3.5" /> Edit</Button>
         {approval && <Button size="sm" variant="primary" loading={busy === s.id} onClick={() => shopAction(s, 'approve')}><Check className="size-4" /> Approve</Button>}
         {s.status === 'pending' && <Button size="sm" variant="danger" loading={busy === s.id} onClick={() => shopAction(s, 'reject')}>Reject</Button>}
+        {s.status === 'rejected' && <Button size="sm" variant="primary" loading={busy === s.id} onClick={() => shopAction(s, 'approve')}>Re-approve</Button>}
         {s.status === 'approved' && <Button size="sm" variant="danger" loading={busy === s.id} onClick={() => shopAction(s, 'suspend')}>Suspend</Button>}
         {s.status === 'suspended' && <Button size="sm" variant="primary" loading={busy === s.id} onClick={() => shopAction(s, 'restore')}>Restore</Button>}
       </div>
