@@ -8,6 +8,8 @@ import ImageUpload from '../../components/ImageUpload.jsx';
 import { Badge, Button, EmptyState, Field, Input, Modal, Skeleton, Textarea, Thumb, Toggle } from '../../components/ui.jsx';
 
 const blank = { name: '', category: '', price: '', stock: '20', description: '', image_url: '', is_active: true, sizes: [] };
+const CATEGORY_PRESETS = ['Coffee', 'Espresso', 'Iced Coffee', 'Milk Tea', 'Frappe', 'Non-Coffee', 'Tea', 'Pastries', 'Snacks', 'Other'];
+const SIZE_PRESETS = ['Small', 'Medium', 'Large', 'Extra Large'];
 
 function ProductForm({ shopId, product, categories, onSaved, onClose }) {
   const toast = useToast();
@@ -51,7 +53,7 @@ function ProductForm({ shopId, product, categories, onSaved, onClose }) {
           <Field label="Name" className="sm:col-span-2"><Input value={f.name} onChange={set('name')} required autoFocus /></Field>
           <Field label="Category" hint="Groups your menu, like Espresso or Pastry.">
             <Input list="categories" value={f.category} onChange={set('category')} />
-            <datalist id="categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+            <datalist id="categories">{[...new Set([...CATEGORY_PRESETS, ...categories])].map((c) => <option key={c} value={c} />)}</datalist>
           </Field>
           <Field label="Base price (₱)"><Input type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={set('price')} required /></Field>
           <Field label="In stock"><Input type="number" min="0" step="1" inputMode="numeric" value={f.stock} onChange={set('stock')} required /></Field>
@@ -60,7 +62,8 @@ function ProductForm({ shopId, product, categories, onSaved, onClose }) {
 
         <div>
           <p className="mb-1.5 text-sm font-medium text-ink-800">Sizes</p>
-          <p className="mb-2 text-[13px] text-ink-600">Leave empty if there’s one size. The extra amount is added to the base price.</p>
+          <p className="mb-2 text-[13px] text-ink-600">Leave empty if there’s one size. The extra amount is added to the base price. Choose a preset or enter your own size.</p>
+          <div className="mb-3 flex flex-wrap gap-2">{SIZE_PRESETS.map((name) => <Button key={name} type="button" variant="outline" size="sm" disabled={f.sizes.some((s) => s.name.toLowerCase() === name.toLowerCase())} onClick={() => setF({ ...f, sizes: [...f.sizes, { name, extra: 0 }] })}>{name}</Button>)}</div>
           <div className="space-y-2">
             {f.sizes.map((s, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -86,7 +89,7 @@ function ProductForm({ shopId, product, categories, onSaved, onClose }) {
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="dark" loading={busy}>{product ? 'Save changes' : 'Add product'}</Button>
+          <Button variant="dark" loading={busy}>{product ? 'Save product changes' : 'Save product'}</Button>
         </div>
       </form>
     </Modal>
