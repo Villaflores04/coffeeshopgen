@@ -3,11 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import { Clock, ExternalLink, MapPin, Phone, Plus, Truck } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { useCart } from '../lib/CartContext.jsx';
+import { useAuth } from '../lib/AuthContext.jsx';
 import { pesoShort, timeAgo } from '../lib/format.js';
 import CartTicket from '../components/CartTicket.jsx';
 import { Badge, EmptyState, Leader, LinkButton, Skeleton, Stars, Thumb, cn } from '../components/ui.jsx';
 
-function MenuItem({ shop, product }) {
+function MenuItem({ shop, product, isOwnShop }) {
   const { addItem } = useCart();
   const sizes = product.sizes ?? [];
   const [size, setSize] = useState(sizes[0]?.name ?? null);
@@ -52,10 +53,10 @@ function MenuItem({ shop, product }) {
             {!out && product.stock <= 5 && <Badge tone="warn">{product.stock} left</Badge>}
             <button
               onClick={() => addItem(shop, product, size)}
-              disabled={out || closed}
+              disabled={out || closed || isOwnShop}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-ink-900/25 bg-foam px-3.5 text-sm font-semibold transition-colors hover:border-ink-900 hover:bg-ink-900 hover:text-foam disabled:pointer-events-none disabled:opacity-45"
             >
-              {out ? 'Sold out' : <><Plus className="size-4" aria-hidden /> Add</>}
+              {isOwnShop ? 'Your shop' : out ? 'Sold out' : <><Plus className="size-4" aria-hidden /> Add</>}
             </button>
           </div>
         </div>
@@ -66,6 +67,7 @@ function MenuItem({ shop, product }) {
 
 export default function ShopPage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
   const [rating, setRating] = useState(null);
@@ -112,6 +114,7 @@ export default function ShopPage() {
   }
 
   const social = shop.social_links ?? {};
+  const isOwnShop = Boolean(user && shop.owner_id === user.id);
 
   return (
     <div className="pt-6 sm:pt-8">
@@ -156,6 +159,12 @@ export default function ShopPage() {
       </ul>
       {shop.description && <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-700">{shop.description}</p>}
 
+      {isOwnShop && (
+        <p className="mt-6 rounded-lg border border-ink-900/10 bg-kraft-200 px-4 py-3 text-sm font-medium">
+          This is your shop. You can preview your menu, but you can’t place orders from your own shop account.
+        </p>
+      )}
+
       {!shop.is_open && (
         <p className="mt-6 rounded-lg bg-kraft-200 px-4 py-3 text-sm font-medium">
           {shop.name} is closed right now. You can look at the menu, but ordering is paused until it reopens.
@@ -181,7 +190,7 @@ export default function ShopPage() {
               <h2 className="mt-8 mb-1 font-display text-2xl font-extrabold tracking-tight">{name}</h2>
               <ul className="divide-y divide-ink-900/10 border-y border-ink-900/10">
                 {items.map((p) => (
-                  <MenuItem key={p.id} shop={shop} product={p} />
+                  <MenuItem key={p.id} shop={shop} product={p} isOwnShop={isOwnShop} />
                 ))}
               </ul>
             </section>
