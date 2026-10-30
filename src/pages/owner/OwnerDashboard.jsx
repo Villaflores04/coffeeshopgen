@@ -30,7 +30,8 @@ export default function OwnerDashboard() {
   const [error, setError] = useState('');
 
   const loadShop = useCallback(async () => {
-    const { data } = await supabase.from('shops').select('*').eq('owner_id', user.id).maybeSingle();
+    const { data, error: loadError } = await supabase.from('shops').select('*').eq('owner_id', user.id).maybeSingle();
+    if (loadError) { setError(errMsg(loadError)); return; }
     setShop(data);
     refreshProfile();
   }, [user.id, refreshProfile]);
@@ -108,6 +109,7 @@ export default function OwnerDashboard() {
     loadShop();
   }
 
+  if (error && shop === undefined) return <Panel className="mt-10 p-5 text-sm">{error}<Button onClick={loadShop}>Retry</Button></Panel>;
   if (shop === undefined) return <Skeleton className="mt-10 h-72 w-full" />;
 
   if (shop === null) {
@@ -145,6 +147,17 @@ export default function OwnerDashboard() {
         )}
         <p className="mt-4 mb-10 text-ink-700">Update your details below and send the application again.</p>
         <ShopForm shop={shop} submitLabel="Save and resubmit" onSubmit={resubmit} busy={busy} error={error} />
+      </div>
+    );
+  }
+
+  if (shop.status === 'suspended') {
+    return (
+      <div className="mx-auto max-w-xl pt-16 text-center">
+        <Badge tone="danger">Shop suspended</Badge>
+        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-tight">{shop.name} is temporarily unavailable</h1>
+        {shop.rejection_reason && <p className="mt-4 rounded-lg bg-cherry-100 px-4 py-3 text-left text-sm"><strong>Admin reason:</strong> {shop.rejection_reason}</p>}
+        <p className="mt-4 text-ink-700">Your shop page and seller actions are paused. Existing order history is preserved. Contact the marketplace administrator if you need clarification.</p>
       </div>
     );
   }
