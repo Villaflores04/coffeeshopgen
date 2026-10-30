@@ -9,6 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx';
 import SetupNotice from './components/SetupNotice.jsx';
 import { Skeleton } from './components/ui.jsx';
 import Home from './pages/Home.jsx';
+import { useAuth } from './lib/AuthContext.jsx';
 
 const ShopPage = lazy(() => import('./pages/ShopPage.jsx'));
 const Cart = lazy(() => import('./pages/Cart.jsx'));
@@ -29,6 +30,8 @@ function ScrollToTop() {
 
 export default function App() {
   const { pathname } = useLocation();
+  const { session, role, loading: authLoading } = useAuth();
+  const isAdmin = !authLoading && !!session && role === 'admin';
   if (!isSupabaseConfigured) return <SetupNotice />;
 
   return (
@@ -39,7 +42,7 @@ export default function App() {
         <ErrorBoundary key={pathname}>
           <Suspense fallback={<Skeleton className="mt-10 h-72 w-full" />}>
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <Home />} />
               <Route path="/shops/:id" element={<ShopPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/cart" element={<Cart />} />
@@ -53,8 +56,8 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
       </main>
-      <Footer />
-      <CartBar />
+      {!isAdmin && <Footer />}
+      {!isAdmin && <CartBar />}
     </>
   );
 }
