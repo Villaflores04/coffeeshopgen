@@ -129,8 +129,13 @@ export async function describe({ name, categories = [] }) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
-  if (!process.env.GEMINI_API_KEY || !SUPABASE_URL || !SUPABASE_KEY) {
-    return res.status(503).json({ error: 'AI isn’t set up yet. Ask the site owner to add GEMINI_API_KEY.' });
+  const missing = [
+    !process.env.GEMINI_API_KEY && 'GEMINI_API_KEY',
+    !SUPABASE_URL && 'VITE_SUPABASE_URL',
+    !SUPABASE_KEY && 'VITE_SUPABASE_ANON_KEY',
+  ].filter(Boolean);
+  if (missing.length) {
+    return res.status(503).json({ error: `AI isn’t set up yet. This deployment is missing: ${missing.join(', ')}. Add it in Vercel, then redeploy.` });
   }
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const user = token && (await getUser(token).catch(() => null));
