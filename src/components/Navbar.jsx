@@ -49,11 +49,12 @@ function AccountMenu() {
       </button>
       {open && (
         <div className="animate-rise absolute right-0 mt-2 w-52 rounded-xl border border-ink-900/12 bg-foam p-1.5 shadow-xl" onClick={() => setOpen(false)}>
-          <Link to="/profile" className={item}>My profile</Link>
-          <Link to="/orders" className={item}>My orders</Link>
-          <Link to="/rewards" className={item}>Rewards</Link>
-          <Link to="/owner" className={item}>{role === 'owner' || role === 'admin' ? 'My shop' : 'Open a shop'}</Link>
-          {role === 'admin' && <Link to="/admin" className={item}>Admin</Link>}
+          {role === 'admin' ? <Link to="/admin" className={item}>Admin control center</Link> : <>
+            <Link to="/profile" className={item}>My profile</Link>
+            <Link to="/orders" className={item}>My orders</Link>
+            <Link to="/rewards" className={item}>Rewards</Link>
+            <Link to="/owner" className={item}>{role === 'owner' ? 'My shop' : 'Open a shop'}</Link>
+          </>}}
           <button
             className={cn(item, 'flex items-center gap-2 text-cherry-600')}
             onClick={async () => {
@@ -70,7 +71,7 @@ function AccountMenu() {
 }
 
 export default function Navbar() {
-  const { session } = useAuth();
+  const { session, role } = useAuth();
   const { count } = useCart();
   const [sheet, setSheet] = useState(false);
   const navigate = useNavigate();
@@ -88,7 +89,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          {role !== 'admin' && <button
             onClick={() => navigate('/cart')}
             aria-label={`Cart, ${count} item${count === 1 ? '' : 's'}`}
             className="relative grid size-10 place-items-center rounded-lg hover:bg-ink-900/6"
@@ -99,7 +100,7 @@ export default function Navbar() {
                 {count}
               </span>
             )}
-          </button>
+          </button>}
 
           <div className="hidden md:block">
             {session ? <AccountMenu /> : <Link to="/login" className={btn('dark', 'sm')}>Log in</Link>}
@@ -126,14 +127,15 @@ function MobileLinks() {
   const item = 'block rounded-md px-3 py-3 text-base font-semibold hover:bg-ink-900/6';
   return (
     <div className="pt-2">
-      <Link to="/" className={item}>Browse shops</Link>
-      {session ? (
-        <>
-          <Link to="/profile" className={item}>My profile</Link>
-          <Link to="/orders" className={item}>My orders</Link>
-          <Link to="/rewards" className={item}>Rewards</Link>
-          <Link to="/owner" className={item}>{role === 'owner' || role === 'admin' ? 'My shop' : 'Open a shop'}</Link>
-          {role === 'admin' && <Link to="/admin" className={item}>Admin</Link>}
+      {session && role === 'admin' ? <>
+        <Link to="/admin" className={item}>Admin control center</Link>
+        <Link to="/profile" className={item}>My profile</Link>
+      </> : session ? <>
+        <Link to="/" className={item}>Browse shops</Link>
+        <Link to="/profile" className={item}>My profile</Link>
+        <Link to="/orders" className={item}>My orders</Link>
+        <Link to="/rewards" className={item}>Rewards</Link>
+        <Link to="/owner" className={item}>{role === 'owner' ? 'My shop' : 'Open a shop'}</Link>
           <button
             className={cn(item, 'w-full text-left text-cherry-600')}
             onClick={async () => {
@@ -144,9 +146,7 @@ function MobileLinks() {
             Log out
           </button>
         </>
-      ) : (
-        <Link to="/login" className={item}>Log in or sign up</Link>
-      )}
+      </> : <><Link to="/" className={item}>Browse shops</Link><Link to="/login" className={item}>Log in or sign up</Link></>}
     </div>
   );
 }
