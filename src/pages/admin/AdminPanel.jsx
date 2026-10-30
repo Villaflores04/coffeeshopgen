@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Search, ClipboardList, Activity, ShieldAlert, RefreshCw, Pencil, Check, X } from 'lucide-react';
+import { Search, ClipboardList, Activity, ShieldAlert, RefreshCw, Pencil, Check, X, Store, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase.js';
 import { useToast } from '../../lib/ToastContext.jsx';
+import { useConfirm } from '../../lib/ConfirmContext.jsx';
 import { dateTime, errMsg, peso } from '../../lib/format.js';
 import { Badge, Button, EmptyState, Input, PageHeading, Panel, Skeleton, Thumb } from '../../components/ui.jsx';
 
 const sections = [
   { id: 'overview', label: 'Overview', icon: Activity },
   { id: 'approvals', label: 'Approvals', icon: ClipboardList },
+  { id: 'shops', label: 'Shops', icon: Store },
   { id: 'accounts', label: 'Accounts', icon: ShieldAlert },
 ];
 
@@ -34,6 +36,7 @@ function SectionTitle({ title, detail, count }) {
 
 export default function AdminPanel() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [section, setSection] = useState('overview');
   const [shops, setShops] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -66,7 +69,8 @@ export default function AdminPanel() {
     return items.filter((item) => fields.some((field) => String(field(item) ?? '').toLowerCase().includes(q)));
   };
   const pending = shops.filter((s) => s.status === 'pending');
-  const visibleShops = filtered(section === 'approvals' ? pending : shops, [
+  const managed = shops.filter((s) => s.status !== 'pending');
+  const visibleShops = filtered(section === 'approvals' ? pending : section === 'shops' ? managed : shops, [
     (s) => s.name, (s) => s.owner?.full_name, (s) => s.address, (s) => s.contact_email,
   ]);
   const visibleProfiles = filtered(profiles, [
@@ -74,18 +78,22 @@ export default function AdminPanel() {
   ]);
 
   async function shopAction(shop, action) {
-    let reason = null;
-    if (['reject', 'suspend'].includes(action)) {
-      reason = window.prompt(action === 'reject' ? 'Why is this application being rejected?' : 'Why is this shop being suspended?');
-      if (!reason?.trim()) return;
-    } else if (!window.confirm(action === 'approve' ? 'Approve this shop and allow it to sell?' : 'Restore this shop and allow it to sell again?')) return;
+    const copy = {
+      approve: { title: `Approve ${shop.name}?`, message: 'It goes live and can start selling.', confirmText: 'Approve' },
+      restore: { title: `Restore ${shop.name}?`, message: 'It becomes visible and can take orders again.', confirmText: 'Restore' },
+      reject: { title: `Reject ${shop.name}?`, message: 'The owner sees your reason and can fix and resubmit.', confirmText: 'Reject', danger: true, input: { label: 'Reason for rejecting', required: true } },
+      suspend: { title: `Suspend ${shop.name}?`, message: 'It disappears from the marketplace and stops taking orders. Order history is kept, and you can restore it later.', confirmText: 'Suspend', danger: true, input: { label: 'Reason for suspending (shown to the owner)', required: true } },
+      remove: { title: `Remove ${shop.name} permanently?`, message: 'This deletes the shop, its products, past orders and reviews. It can’t be undone. The owner goes back to a customer account. To pause a shop instead, use Suspend.', confirmText: 'Remove shop', danger: true, input: { label: 'Reason for removing (kept in the admin log)', required: true } },
+    }[action];
+    const res = await confirm(copy);
+    if (!res) return;
     setBusy(shop.id);
-    const { error: err } = await supabase.rpc('admin_manage_shop', {
-      p_shop: shop.id, p_action: action, p_reason: reason, p_changes: {},
-    });
+    const { error: err } = action === 'remove'
+      ? await supabase.rpc('admin_remove_shop', { p_shop: shop.id, p_reason: res.value })
+      : await supabase.rpc('admin_manage_shop', { p_shop: shop.id, p_action: action, p_reason: res.value || null, p_changes: {} });
     setBusy('');
     if (err) return toast.error(errMsg(err));
-    toast.success(action === 'approve' ? 'Shop approved and activated.' : action === 'reject' ? 'Application rejected.' : action === 'suspend' ? 'Shop suspended.' : 'Shop restored.');
+    toast.success({ approve: 'Shop approved and activated.', reject: 'Application rejected.', suspend: 'Shop suspended.', restore: 'Shop restored.', remove: 'Shop removed.' }[action]);
     await load();
   }
 
@@ -144,6 +152,7 @@ export default function AdminPanel() {
         {s.status === 'rejected' && <Button size="sm" variant="primary" loading={busy === s.id} onClick={() => shopAction(s, 'approve')}>Re-approve</Button>}
         {s.status === 'approved' && <Button size="sm" variant="danger" loading={busy === s.id} onClick={() => shopAction(s, 'suspend')}>Suspend</Button>}
         {s.status === 'suspended' && <Button size="sm" variant="primary" loading={busy === s.id} onClick={() => shopAction(s, 'restore')}>Restore</Button>}
+        {s.status !== 'pending' && <Button size="sm" variant="outline" className="text-cherry-600" loading={busy === s.id} onClick={() => shopAction(s, 'remove')}><Trash2 className="size-4" /> Remove</Button>}
       </div>
     </div>
     <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
@@ -185,6 +194,11 @@ export default function AdminPanel() {
     {section === 'approvals' && <><SectionTitle title="Shop applications" detail="Only approved shops can publish products and accept orders." count={pending.length} />{search}
       <div className="space-y-4">{visibleShops.map((s) => shopCard(s, true))}</div>
       {!visibleShops.length && <EmptyState title="No matching applications">Pending applications will appear here.</EmptyState>}
+    </>}
+
+    {section === 'shops' && <><SectionTitle title="Shops" detail="Suspend a live shop to pause it, restore it later, or remove it for good." count={managed.length} />{search}
+      <div className="space-y-4">{visibleShops.map((s) => shopCard(s))}</div>
+      {!visibleShops.length && <EmptyState title="No shops here">Approved, suspended and rejected shops appear in this list.</EmptyState>}
     </>}
 
     {section === 'accounts' && <><SectionTitle title="User accounts" detail="Inspect account details, update profile information, and suspend or restore access." count={visibleProfiles.length} />{search}
