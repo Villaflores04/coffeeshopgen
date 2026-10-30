@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, matchPath } from 'react-router-dom';
 import { Send, Sparkles, X } from 'lucide-react';
-import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { callAi } from '../lib/ai.js';
 import ProductCard from './ProductCard.jsx';
@@ -36,14 +35,7 @@ export default function CoffeeAssistant() {
     setBusy(true);
     try {
       const out = await callAi({ mode: 'chat', shopId, messages: next.filter((m) => m !== WELCOME).map(({ role, text: t }) => ({ role, text: t })) });
-      let picks = [];
-      if (out.product_ids.length) {
-        const { data: products } = await supabase.from('products').select('*').in('id', out.product_ids);
-        const { data: shops } = await supabase.from('shops').select('*').in('id', [...new Set((products ?? []).map((p) => p.shop_id))]);
-        const byShop = new Map((shops ?? []).map((s) => [s.id, s]));
-        picks = out.product_ids.map((id) => (products ?? []).find((p) => p.id === id)).filter((p) => p && byShop.has(p.shop_id)).map((p) => ({ product: p, shop: byShop.get(p.shop_id) }));
-      }
-      setMsgs([...next, { role: 'assistant', text: out.reply, picks }]);
+      setMsgs([...next, { role: 'assistant', text: out.reply, picks: out.picks }]);
     } catch (e) {
       setMsgs([...next, { role: 'assistant', text: e.message, picks: [], error: true }]);
     } finally {
