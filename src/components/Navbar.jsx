@@ -50,7 +50,6 @@ function AccountMenu() {
       {open && (
         <div className="animate-rise absolute right-0 mt-2 w-52 rounded-xl border border-ink-900/12 bg-foam p-1.5 shadow-xl" onClick={() => setOpen(false)}>
           <Link to="/profile" className={item}>My profile</Link>
-          <Link to="/profile" className={item}>My profile</Link>
           <Link to="/orders" className={item}>My orders</Link>
           <Link to="/rewards" className={item}>Rewards</Link>
           <Link to="/owner" className={item}>{role === 'owner' || role === 'admin' ? 'My shop' : 'Open a shop'}</Link>
