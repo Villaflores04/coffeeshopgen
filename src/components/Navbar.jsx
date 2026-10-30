@@ -27,126 +27,89 @@ function AccountMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
-
   useEffect(() => {
-    const close = (e) => !ref.current?.contains(e.target) && setOpen(false);
+    const close = (event) => !ref.current?.contains(event.target) && setOpen(false);
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
-
   const first = (profile?.full_name || 'Account').split(' ')[0];
   const item = 'block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-ink-900/6';
 
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="flex h-10 items-center gap-1.5 rounded-lg border border-ink-900/18 bg-foam px-3 text-sm font-semibold hover:border-ink-900/40"
-      >
-        {first}
-        <ChevronDown className="size-4" aria-hidden />
+  return <div className="relative" ref={ref}>
+    <button onClick={() => setOpen(!open)} aria-expanded={open}
+      className="flex h-10 items-center gap-1.5 rounded-lg border border-ink-900/18 bg-foam px-3 text-sm font-semibold hover:border-ink-900/40">
+      {first}<ChevronDown className="size-4" aria-hidden />
+    </button>
+    {open && <div className="animate-rise absolute right-0 mt-2 w-52 rounded-xl border border-ink-900/12 bg-foam p-1.5 shadow-xl" onClick={() => setOpen(false)}>
+      {role === 'admin' ? <><Link to="/admin" className={item}>Admin control center</Link><Link to="/profile" className={item}>My profile</Link></> : <>
+        <Link to="/profile" className={item}>My profile</Link>
+        <Link to="/orders" className={item}>My orders</Link>
+        <Link to="/rewards" className={item}>Rewards</Link>
+        <Link to="/owner" className={item}>{role === 'owner' ? 'My shop' : 'Open a shop'}</Link>
+      </>}
+      <button className={cn(item, 'flex items-center gap-2 text-cherry-600')} onClick={async () => { await signOut(); navigate('/'); }}>
+        <LogOut className="size-4" aria-hidden /> Log out
       </button>
-      {open && (
-        <div className="animate-rise absolute right-0 mt-2 w-52 rounded-xl border border-ink-900/12 bg-foam p-1.5 shadow-xl" onClick={() => setOpen(false)}>
-          <Link to="/profile" className={item}>My profile</Link>
-          <Link to="/orders" className={item}>My orders</Link>
-          <Link to="/rewards" className={item}>Rewards</Link>
-          <Link to="/owner" className={item}>{role === 'owner' || role === 'admin' ? 'My shop' : 'Open a shop'}</Link>
-          {role === 'admin' && <Link to="/admin" className={item}>Admin</Link>}
-          <button
-            className={cn(item, 'flex items-center gap-2 text-cherry-600')}
-            onClick={async () => {
-              await signOut();
-              navigate('/');
-            }}
-          >
-            <LogOut className="size-4" aria-hidden /> Log out
-          </button>
-        </div>
-      )}
-    </div>
-  );
+    </div>}
+  </div>;
 }
 
 export default function Navbar() {
-  const { session } = useAuth();
+  const { session, role } = useAuth();
   const { count } = useCart();
   const [sheet, setSheet] = useState(false);
   const navigate = useNavigate();
+  const isAdmin = session && role === 'admin';
 
-  return (
-    <header className="sticky top-0 z-40 border-b border-ink-900/10 bg-steam-100/90 backdrop-blur-md">
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-8">
-          <Logo />
-          <div className="hidden items-center gap-1 md:flex">
+  return <header className="sticky top-0 z-40 border-b border-ink-900/10 bg-steam-100/90 backdrop-blur-md">
+    <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="flex items-center gap-8">
+        <Logo />
+        <div className="hidden items-center gap-1 md:flex">
+          {isAdmin ? <NavLink to="/admin" className={linkCls}>Admin control center</NavLink> : <>
             <NavLink to="/" end className={linkCls}>Browse shops</NavLink>
             {session && <NavLink to="/orders" className={linkCls}>Orders</NavLink>}
             {session && <NavLink to="/rewards" className={linkCls}>Rewards</NavLink>}
-          </div>
+          </>}
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/cart')}
-            aria-label={`Cart, ${count} item${count === 1 ? '' : 's'}`}
-            className="relative grid size-10 place-items-center rounded-lg hover:bg-ink-900/6"
-          >
-            <ShoppingBag className="size-5" aria-hidden />
-            {count > 0 && (
-              <span className="absolute top-0.5 right-0.5 grid min-w-4 place-items-center rounded-full bg-cherry-500 px-1 text-[10px] font-bold text-white">
-                {count}
-              </span>
-            )}
-          </button>
-
-          <div className="hidden md:block">
-            {session ? <AccountMenu /> : <Link to="/login" className={btn('dark', 'sm')}>Log in</Link>}
-          </div>
-
-          <button className="grid size-10 place-items-center rounded-lg hover:bg-ink-900/6 md:hidden" aria-label={sheet ? 'Close menu' : 'Open menu'} onClick={() => setSheet(!sheet)}>
-            {sheet ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
-        </div>
-      </nav>
-
-      {sheet && (
-        <div className="animate-rise border-t border-ink-900/10 bg-steam-100 px-4 pb-4 md:hidden" onClick={() => setSheet(false)}>
-          <MobileLinks />
-        </div>
-      )}
-    </header>
-  );
+      </div>
+      <div className="flex items-center gap-2">
+        {!isAdmin && <button onClick={() => navigate('/cart')} aria-label={`Cart, ${count} item${count === 1 ? '' : 's'}`}
+          className="relative grid size-10 place-items-center rounded-lg hover:bg-ink-900/6">
+          <ShoppingBag className="size-5" aria-hidden />
+          {count > 0 && <span className="absolute top-0.5 right-0.5 grid min-w-4 place-items-center rounded-full bg-cherry-500 px-1 text-[10px] font-bold text-white">{count}</span>}
+        </button>}
+        <div className="hidden md:block">{session ? <AccountMenu /> : <Link to="/login" className={btn('dark', 'sm')}>Log in</Link>}</div>
+        <button className="grid size-10 place-items-center rounded-lg hover:bg-ink-900/6 md:hidden"
+          aria-label={sheet ? 'Close menu' : 'Open menu'} onClick={() => setSheet(!sheet)}>
+          {sheet ? <X className="size-5" /> : <Menu className="size-5" />}
+        </button>
+      </div>
+    </nav>
+    {sheet && <div className="animate-rise border-t border-ink-900/10 bg-steam-100 px-4 pb-4 md:hidden" onClick={() => setSheet(false)}>
+      <MobileLinks />
+    </div>}
+  </header>;
 }
 
 function MobileLinks() {
   const { session, role, signOut } = useAuth();
   const navigate = useNavigate();
   const item = 'block rounded-md px-3 py-3 text-base font-semibold hover:bg-ink-900/6';
-  return (
-    <div className="pt-2">
+  return <div className="pt-2">
+    {session && role === 'admin' ? <>
+      <Link to="/admin" className={item}>Admin control center</Link>
+      <Link to="/profile" className={item}>My profile</Link>
+    </> : session ? <>
       <Link to="/" className={item}>Browse shops</Link>
-      {session ? (
-        <>
-          <Link to="/profile" className={item}>My profile</Link>
-          <Link to="/orders" className={item}>My orders</Link>
-          <Link to="/rewards" className={item}>Rewards</Link>
-          <Link to="/owner" className={item}>{role === 'owner' || role === 'admin' ? 'My shop' : 'Open a shop'}</Link>
-          {role === 'admin' && <Link to="/admin" className={item}>Admin</Link>}
-          <button
-            className={cn(item, 'w-full text-left text-cherry-600')}
-            onClick={async () => {
-              await signOut();
-              navigate('/');
-            }}
-          >
-            Log out
-          </button>
-        </>
-      ) : (
-        <Link to="/login" className={item}>Log in or sign up</Link>
-      )}
-    </div>
-  );
+      <Link to="/profile" className={item}>My profile</Link>
+      <Link to="/orders" className={item}>My orders</Link>
+      <Link to="/rewards" className={item}>Rewards</Link>
+      <Link to="/owner" className={item}>{role === 'owner' ? 'My shop' : 'Open a shop'}</Link>
+    </> : <>
+      <Link to="/" className={item}>Browse shops</Link>
+      <Link to="/login" className={item}>Log in or sign up</Link>
+    </>}
+    {session && <button className={cn(item, 'w-full text-left text-cherry-600')} onClick={async () => { await signOut(); navigate('/'); }}>Log out</button>}
+  </div>;
 }
